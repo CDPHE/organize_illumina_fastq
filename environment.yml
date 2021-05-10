@@ -1,0 +1,10 @@
+name: terra_seq_prep
+channels:
+  - pypi
+  - defaults
+dependencies:
+  - python=3.7
+  - pandas=1.2.0
+  - glob2=0.7
+  - regex=2020.11.13
+  - google-cloud-storage=1.36.1
