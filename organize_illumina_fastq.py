@@ -27,9 +27,8 @@ import subprocess
 # note this script takes 3 arguments
 
 ## Example input ##
-# organiz_fastq_files_v20210301.py --seq_run <seq_run_name> --bucket_path <gs://path_to_bucket> --run_type <paired or single>
-# organize_fastq_files_v20210301.py COVSEQ_0050rr gs://covid_sequencing/covid_sequencing/sequencing_runs
-# organize_fastq_files_v20210301.py COVSEQ_0050rr gs://covid_terra
+# organiz_fastq_files.py --seq_run <seq_run_name> --bucket_path <gs://path_to_bucket> --run_type <paired or single>
+# organize_fastq_files.py --seq_run COVSEQ_0050rr --bucket_path gs://covid_terra --run_type paired
 
 
 
@@ -38,7 +37,7 @@ def getOptions(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(description="Parses command.")
     parser.add_argument( "--seq_run", help="sequencing run name; must match directory")
     parser.add_argument("--bucket_path", help="google cloud bucket path; gs://covid_terra")
-    parser.add_argument("--run_type",  help="either paired or single")
+    parser.add_argument("--run_type",  help="either 'paired' or 'single'")
     options = parser.parse_args(args)
     return options
 
@@ -55,35 +54,6 @@ def create_fastq_files_directory(seq_run, current_dir):
                              
     return fastq_files_dir
 
-
-# def copy_and_rename_fastq_gz_files_single( current_dir, fastq_files_dir):
-#     print('')
-#     print('******* copying and renaming fastq.gz files *******')
-    
-#     os.chdir(current_dir)
-
-#     n = 0
-#     for file in glob.glob('*_L001*/*.fastq.gz'):
-#         n = n+1
-
-#         # extract info from file name to use to create new file name
-#         sample_name = file.split('_L001')[0] # the base directory name
-
-
-#         new_file_name = '%s.fastq.gz' % (sample_name)
-#         old_file_name = file.split('/')[1]
-
-
-#         # check that new name makes sense:
-#         print('%d: %s is renamed to %s' % (n, old_file_name, new_file_name))
-
-#         # copy file into new directory
-#         shutil.copy(file, fastq_files_dir)
-
-#         # rename the file
-#         old= os.path.join(fastq_files_dir, old_file_name)
-#         new = os.path.join(fastq_files_dir, new_file_name)
-#         os.rename(old, new)
 
 
 def concate_fastq_gz_files_single(current_dir, fastq_files_dir):
@@ -182,8 +152,8 @@ def upload_fastq_files_to_bucket(seq_run, current_dir, fastq_files_dir, bucket_n
           
 def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, current_dir, seq_run ):
     print('******* creating datatable for terra *******')
-    seq_run_mod = re.sub('COVSEQ', '', seq_run)
-    seq_run_mod = re.sub('_', '', seq_run_mod)
+
+    seq_run_mod = re.sub('_', '', seq_run)
 
     df = pd.DataFrame()
     
@@ -206,11 +176,10 @@ def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, curr
             fastq_path_list.append('gs://%s' % file_name)
         
 
-    df['sample_name'] = R1_sample_name_list
-    df['fastq'] = R1_fastq_list 
+    df['sample_name'] = sample_name_list
+    df['fastq'] = fastq_path_list 
 
-    df = df.rename(columns = {'sample_name' : 'entity:sampleC%s_id' % seq_run_mod})
-    df['out_dir'] = 'gs://%s/%s' % (bucket_path, seq_run )
+    df = df.rename(columns = {'sample_name' : 'entity:sample%s_id' % seq_run_mod})
           
     outfile = os.path.join(current_dir, '%s_terra_data_table.tsv' % seq_run)
     df.to_csv(outfile, index = False, sep = '\t')
@@ -230,8 +199,11 @@ def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, curr
     
 def create_terra_data_table_paired(bucket_path, bucket_name, bucket_prefix, current_dir, seq_run ):
     print('******* creating datatable for terra *******')
-    seq_run_mod = re.sub('COVSEQ', '', seq_run)
-    seq_run_mod = re.sub('_', '', seq_run_mod)
+
+    seq_run_mod = re.sub('_', '', seq_run)
+    if re.search('WWT', seq_run_mod):
+        seq_run_mod = re.sub('COVSEQ', '', seq_run_mod)
+        
     R1_df = pd.DataFrame()
     R2_df = pd.DataFrame()
     
@@ -276,8 +248,7 @@ def create_terra_data_table_paired(bucket_path, bucket_name, bucket_prefix, curr
           
     df = R1_df.join(R2_df, how='left')
     df = df.reset_index()
-    df = df.rename(columns = {'sample_name' : 'entity:sampleI%s_id' % seq_run_mod})
-#     df['out_dir'] = 'gs://%s/%s' % (bucket_path, seq_run )
+    df = df.rename(columns = {'sample_name' : 'entity:sample%s_id' % seq_run_mod})
           
     outfile = os.path.join(current_dir, '%s_terra_data_table.tsv' % seq_run)
     df.to_csv(outfile, index = False, sep = '\t')
@@ -343,9 +314,6 @@ if __name__ == '__main__':
             fastq_files_dir = create_fastq_files_directory(seq_run = seq_run, 
                                                            current_dir = current_dir)
 
-#             copy_and_rename_fastq_gz_files_single(current_dir = current_dir,
-#                                            fastq_files_dir = fastq_files_dir)
-
             concate_fastq_gz_files_single(current_dir = current_dir, 
                                    fastq_files_dir = fastq_files_dir)
 
@@ -360,8 +328,6 @@ if __name__ == '__main__':
                                     bucket_prefix = bucket_prefix, 
                                     current_dir = current_dir, 
                                     seq_run= seq_run)                   
-
-
 
             remove_fastq_gz_directories(current_dir = current_dir)
 
