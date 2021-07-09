@@ -26,6 +26,8 @@ import subprocess
 # 4. run this script from inside the directory
 # note this script takes 3 arguments
 
+# 5. this script outputs a terra_datatable.tsv
+
 ## Example input ##
 # organiz_fastq_files.py --seq_run <seq_run_name> --bucket_path <gs://path_to_bucket> --run_type <paired or single>
 # organize_fastq_files.py --seq_run COVSEQ_0050rr --bucket_path gs://covid_terra --run_type paired
