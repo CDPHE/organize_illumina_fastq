@@ -20,7 +20,7 @@ import subprocess
 # 2. download the fastq files from bs into a directory named the same as the seq_run
 # for example if you are downloading COVSEQ_0043, the directory must be named 'COVSEQ_0043'
 
-# 3. cd to the directory with the downloaded fastq files (right this directory will 
+# 3. cd to the directory with the downloaded fastq files (right now this directory will 
 # have a series of directories with each sample's fastq.gz files)
 
 # 4. run this script from inside the directory
