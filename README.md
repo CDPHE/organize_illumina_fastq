@@ -1,5 +1,6 @@
 # organize_illumna_fastq
 
+
 ## Purpose:
 This python script can be used for illumina single end or paired end reads, by specifying ```--run_type``` as "single" or "paired", respectively.
 This python script completes the following tasks:
