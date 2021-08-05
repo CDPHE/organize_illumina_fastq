@@ -1,4 +1,4 @@
-# seq_assembly_prep_for_terra
+# organize_illumna_fastq
 
 ## Purpose:
 This python script can be used for illumina single end or paired end reads, by specifying ```--run_type``` as "single" or "paired", respectively.
@@ -17,9 +17,9 @@ This python script completes the following tasks:
 This only needs to be performed the first time you run the script.
 1. Clone the repository to your machine and change directories to the repository on your machine.
 
-```git clone https://github.com/CDPHE/seq_assembly_prep_for_terra.git```
+``git clone https://github.com/CDPHE/organzie_illumina_fastq.git``
 
-``` cd seq_assembly_prep_for_terra```
+`` cd seq_assembly_prep_for_terra``
 
 2. Create the conda environment using the ```environment.yml``` file. The environment's name should be ```terra_seq_prep```
 
