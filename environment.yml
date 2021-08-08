@@ -8,3 +8,4 @@ dependencies:
   - glob2=0.7
   - regex=2020.11.13
   - google-cloud-storage=1.36.1
+  - xlrd=2.0.1

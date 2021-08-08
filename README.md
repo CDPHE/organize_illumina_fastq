@@ -19,9 +19,9 @@ This only needs to be performed the first time you run the script.
 
 ``git clone https://github.com/CDPHE/organzie_illumina_fastq.git``
 
-`` cd seq_assembly_prep_for_terra``
+``cd organize_illumna_fastq``
 
-2. Create the conda environment using the ```environment.yml``` file. The environment's name should be ```terra_seq_prep```
+2. Create the conda environment using the ``environment.yml` file. The environment's name should be ```terra_seq_prep```
 
 ```conda env create -f environment.yml```
 
@@ -32,6 +32,17 @@ This only needs to be performed the first time you run the script.
 4. Activate the conda environment
 
 ```conda activate terra_seq_prep```
+
+## Preparing to run the script:
+1. Clone the repository to your machine and change directories ot the repository on your machine:
+``git clone https://github.com/CDPHE/organzie_illumina_fastq.git``
+
+2. Make the script executable:
+``chmod 755 create_COVMIN_terra_data_table.py``
+
+3. Option 1: add the script to a scripts directory that is listed in your machine's ``$PATH`` variable. In this case you will only need to specify the name of the script each time you run the script.  
+
+4. OPtion 2: specify the path to the script each time you run the script.
 
 ## Running the script:
 ### Part 1: Preparing your data
@@ -54,7 +65,7 @@ This only needs to be performed the first time you run the script.
 
 2. run the script (be sure to still be in the ```COVSEQ_0000``` directory you initally made above). The order of the arguments should be the path to the python script, followed by the name of the sequencing run (which should be the same name as the directory you created above) and finally the path to the google storage bucket where you want the fastq files directory to be stored.
 
-```<path_to_seq_assembly_for_terra>/prep_illumina_fastq_files_for_terra.py --seq_run <COVSEQ_0000> --bucket_path gs://<path_to_bucket> --run_type <paired or single>```
+```<path_to_organize_illumna_fastq_directory>/organize_illumna_fastq.py --seq_run <COVSEQ_0000> --bucket_path gs://<path_to_bucket> --run_type <paired or single>```
 
 ## Outputs
 1. ```fastq_files``` directory
