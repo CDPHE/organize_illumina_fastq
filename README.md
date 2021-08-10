@@ -25,6 +25,9 @@ This only needs to be performed the first time you run the script.
 
 ```conda env create -f environment.yml```
 
+2. If the environment already exists, then to update the environment
+``conda env update -f environment.yml``
+
 3. Check that the environment exists. The name of the enivornment should be ```terra_seq_prep``
 
 ```conda env list```
