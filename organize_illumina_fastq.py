@@ -20,15 +20,11 @@ import subprocess
 # 2. download the fastq files from bs into a directory named the same as the seq_run
 # for example if you are downloading COVSEQ_0043, the directory must be named 'COVSEQ_0043'
 
-# 3. cd to the directory with the downloaded fastq files (right now this directory will 
+# 3. cd to the directory with the downloaded fastq files (right this directory will 
 # have a series of directories with each sample's fastq.gz files)
 
 # 4. run this script from inside the directory
 # note this script takes 3 arguments
-
-# 5. this script outputs a terra_datatable.tsv
-
-
 
 ## Example input ##
 # organiz_fastq_files.py --seq_run <seq_run_name> --bucket_path <gs://path_to_bucket> --run_type <paired or single>
@@ -67,7 +63,7 @@ def concate_fastq_gz_files_single(current_dir, fastq_files_dir):
     
     # get a list of the sample ids
     sample_list = []
-    for file in glob.glob('*_L001*/*.fastq.gz'):
+    for file in glob.glob('*_L00*/*.fastq.gz'):
         sample_name = file.split('_L00')[0]
         if sample_name not in sample_list:
             sample_list.append(sample_name)
