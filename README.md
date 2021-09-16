@@ -70,7 +70,7 @@ This only needs to be performed the first time you run the script.
   - ``--seq_run`` : sequecing run name; must match the current output_directory
   - ``--bucket_path`` : google coloud bucket i.e. gs://covid_terra
   - ``--run_type`` : either "paired" or "single". Used paired for COVSEQ and WWT runs; use single for NEXSEQ runs
-  - ``--sample_sheet`` : path to the excel sample sheet workbook; downloaded from the j drive
+  - ``--sample_sheet`` : (optional) path to the excel sample sheet workbook; downloaded from the j drive, if not specified then the plate name and plate sample well will be filled in as 'not provided'
 
 
 ```<path_to_organize_illumna_fastq_directory>/organize_illumna_fastq.py --seq_run <COVSEQ_0000> --bucket_path gs://<path_to_bucket> --run_type <paired or single>``` --sample_sheet <path to sample sheet>
