@@ -21,7 +21,7 @@ This only needs to be performed the first time you run the script.
 
 ``cd organize_illumna_fastq``
 
-2. Create the conda environment using the ``environment.yml` file. The environment's name should be ```terra_seq_prep```
+2. Create the conda environment using the ```environment.yml``` file. The environment's name should be ```terra_seq_prep``
 
 ```conda env create -f environment.yml```
 
@@ -51,24 +51,29 @@ This only needs to be performed the first time you run the script.
 ### Part 1: Preparing your data
 1. create a directory that has the same name as the sequencing run name and move into that directory
 
-```mkdir COVSEQ_0000```
+``mkdir COVSEQ_0000``
 
-```cd COVSEQ_0000```
+``cd COVSEQ_0000``
 
 2. Download the fastq files from basespace.
 
-```bs list projects```
+``bs list projects``
 
-```bs download project -n COVSEQ_0000 -o .```
+``bs download project -n COVSEQ_0000 -o .``
 
 ### Part 2: Running the script
 1. activate the conda environment
 
-```conda activate terra_seq_prep```
+``conda activate terra_seq_prep``
 
-2. run the script (be sure to still be in the ```COVSEQ_0000``` directory you initally made above). The order of the arguments should be the path to the python script, followed by the name of the sequencing run (which should be the same name as the directory you created above) and finally the path to the google storage bucket where you want the fastq files directory to be stored.
+2. run the script (be sure to still be in the ```COVSEQ_0000``` directory you initally made above). Specify the following flags:
+  - ``--seq_run`` : sequecing run name; must match the current output_directory
+  - ``--bucket_path`` : google coloud bucket i.e. gs://covid_terra
+  - ``--run_type`` : either "paired" or "single". Used paired for COVSEQ and WWT runs; use single for NEXSEQ runs
+  - ``--sample_sheet`` : path to the excel sample sheet workbook; downloaded from the j drive
 
-```<path_to_organize_illumna_fastq_directory>/organize_illumna_fastq.py --seq_run <COVSEQ_0000> --bucket_path gs://<path_to_bucket> --run_type <paired or single>```
+
+```<path_to_organize_illumna_fastq_directory>/organize_illumna_fastq.py --seq_run <COVSEQ_0000> --bucket_path gs://<path_to_bucket> --run_type <paired or single>``` --sample_sheet <path to sample sheet>
 
 ## Outputs
 1. ```fastq_files``` directory
