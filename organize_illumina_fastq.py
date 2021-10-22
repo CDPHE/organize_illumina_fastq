@@ -40,11 +40,12 @@ def getOptions(args=sys.argv[1:]):
     parser.add_argument("--bucket_path", help="google cloud bucket path; gs://covid_terra")
     parser.add_argument("--run_type",  help="either 'paired' or 'single'")
     parser.add_argument("--sample_sheet", help='the import .xlsx sheet from the j drive with the plate well location', default = 'not provided')
+    parser.add_argument('--terra_output_dir', help='optional, default = gs://covid_terra/{seq_run}/terra_outputs/', default = 'not provided')
     options = parser.parse_args(args)
     return options
 
 
-def read_in_sample_sheet(sample_sheet, seq_run, output_dir):
+def read_in_sample_sheet(sample_sheet, seq_run, output_dir, terra_output_dir):
     print('')
     print('')
     print('  ******* reading in sample sheet and getting plate location info *******')
@@ -73,16 +74,21 @@ def read_in_sample_sheet(sample_sheet, seq_run, output_dir):
     
     df = pd.read_csv(target_sheet_tsv, sep = '\t', dtype = {'Sample_ID' : object}, header = header_line)
     columns = df.columns
-
+    
+    # check if primer_set in columns:
+    if not 'primer_set' in df.columns:
+        print('  ... primer set not specificed; primer_set will be recorded as "not specified"')
+        df['primer_set'] = 'not specified'
+    
     if "COVSEQ_Plate" in columns: # NEXSEQ runs
-        col_order = ['Sample_ID', 'COVSEQ_Plate', 'Well_Location']
+        col_order = ['Sample_ID', 'COVSEQ_Plate', 'Well_Location', 'primer_set']
         col_rename = {'Sample_ID' : 'accession_id', 'COVSEQ_Plate' : 'plate_name', 'Well_Location': 'plate_sample_well'}
         df = df[col_order]
         df = df.rename(columns = col_rename)
         sample_list = df.accession_id.unique().tolist()
 
     elif "Sample_Plate" in columns: # MISEQ (WWT/COVSEQ)
-        col_order = ['Sample_ID', 'Sample_Plate', 'Sample_Well']
+        col_order = ['Sample_ID', 'Sample_Plate', 'Sample_Well', 'primer_set']
         col_rename = {'Sample_ID' : 'accession_id', 'Sample_Plate' : 'plate_name', 'Sample_Well': 'plate_sample_well'}
         df = df[col_order]
         df = df.rename(columns = col_rename)
@@ -98,9 +104,19 @@ def read_in_sample_sheet(sample_sheet, seq_run, output_dir):
         df = df.rename(columns = col_rename)
         df['plate_name'] = 'not provided'
         df['plate_sample_well'] = 'not provided'
+        
+        col_order = ['Sample_ID', 'Sample_Plate', 'Sample_Well', 'primer_set']
+        df = df[col_order]
+        
         sample_list = df.accession_id.unique().tolist()        
         
-#     remove temporary target sheet tsv
+    
+    # add out_dir and seq_run columns to df
+    df['out_dir'] = terra_output_dir
+    df['seq_run'] = seq_run
+    
+    
+    # remove temporary target sheet tsv
     os.remove(target_sheet_tsv)
     
     return {'df': df, 'sample_list' : sample_list}
@@ -137,31 +153,20 @@ def concate_fastq_gz_files_single(current_dir, fastq_files_dir, sample_sheet_sam
         if sample_name not in sample_list:
             sample_list.append(sample_name)
     
-    print('  there are %d sample ids in %s' % (len(sample_list), seq_run))
+    print('  .... there are %d sample ids in %s' % (len(sample_list), seq_run))
     print('')
     time.sleep(5)
     
-    if len(sample_sheet_sample_list) > 0: 
-        # check that all samples from run have a fastq file:
-        missing = []
-        for sample in sample_sheet_sample_list:
-            if sample not in sample_list:
-                missing.append(sample)
-        if len(missing) > 0:
-            print('  checking for any sample in run that is missing fastq files')
-            print('  note this is just a warning message, that you can use to go and investigate')
-            for item in missing:
-                print('  ... %s' % item)
-            print('')
-            print('')
-            time.sleep(10)
-
     # now concatenate using subprocesss command
     n = 0
-    samples_without_4_fastq_files = []
+    samples_without_4_fastq_files = {}
     for sample in sample_list:
         n = n + 1
-        print('  ............%d: concatenating files for sample %s' % (n, sample))
+        mult_50 = n % 50
+        if mult_50 == 0 or n == len(sample_list):
+            print('  .... concatenated %d of %d' % (n, len(sample_list)))
+        
+#         print('  ............%d: concatenating files for sample %s' % (n, sample))
 
         # create empty list to hold fastq files assoicated with sample
         file_list = []
@@ -174,21 +179,45 @@ def concate_fastq_gz_files_single(current_dir, fastq_files_dir, sample_sheet_sam
         combined_fastq_file_name = '%s.fastq.gz' % sample
         out_path = os.path.join(fastq_files_dir, combined_fastq_file_name)
 
-        print('  concatenating the following files into single file named: %s' % (combined_fastq_file_name))
+#         print('  concatenating the following files into single file named: %s' % (combined_fastq_file_name))
         i = 0
         for file_name in file_list:
             i = i + 1
             fastq_file_name = file_name.split('/')[1]
-            print('  %d: %s' % (i,fastq_file_name))
+#             print('  %d: %s' % (i,fastq_file_name))
         file_list_string = ' '.join(file_list)
 
         shell_command = 'cat %s > %s' % (file_list_string, out_path)
 
         subprocess.run(args= shell_command, shell= True, check = True)
-        print('')
+#         print('')
         if i != 4:
-            samples_without_4_fastq_files.append(sample)
-            
+            samples_without_4_fastq_files[sample] = i
+    
+    if len(samples_without_4_fastq_files) > 0:
+        print('')
+        print('  WARNING!!! check the following samples')
+        print('  these samples had either less than or more than 4 fastq files; sequencing run may need to be requeued in basespace after removing current fastq files')
+        for sample in samples_without_4_fastq_files:
+            print('  .... %s: %d fastq files' % (sample, samples_without_4_fastq_files[sample]))
+        print('')
+        
+    if len(sample_sheet_sample_list) > 0: 
+        # check that all samples from run have a fastq file:
+        missing = []
+        for sample in sample_sheet_sample_list:
+            if sample not in sample_list:
+                missing.append(sample)
+        if len(missing) > 0:
+            print('  WARNING!! found %d samples in sample sheet without fastq files' % len(missing))
+            print('  the missing samples are:')
+            for item in missing:
+                print('  .... %s' % item)
+            print('')
+            print('')
+            time.sleep(5)
+
+    
     return samples_without_4_fastq_files
 
 def copy_and_rename_fastq_gz_files_paired(seq_run, current_dir, fastq_files_dir, sample_sheet_sample_list):
@@ -198,10 +227,18 @@ def copy_and_rename_fastq_gz_files_paired(seq_run, current_dir, fastq_files_dir,
     time.sleep(5)
     
     os.chdir(current_dir)
+    file_list = os.listdir(current_dir)
     sample_list = []
+    num_fastq_files = 0
+    for file in glob.glob('*_L001_ds.*/*.fastq.gz'):
+        num_fastq_files = num_fastq_files + 1
     n = 0
     for file in glob.glob('*_L001_ds.*/*.fastq.gz'):
         n = n+1
+        mult_25 = n % 25
+        if mult_25 == 0 or n == num_fastq_files:
+            print('  .... renaming %d of %d' % (n, num_fastq_files))
+        
         sample_name = file.split('_L001')[0] # the base directory name
         sample_list.append(sample_name)
 
@@ -212,7 +249,7 @@ def copy_and_rename_fastq_gz_files_paired(seq_run, current_dir, fastq_files_dir,
         old_file_name = file.split('/')[1]
 
         # check that new name makes sense:
-        print('  %d: %s is renamed to %s' % (n, old_file_name, new_file_name))
+#         print('  %d: %s is renamed to %s' % (n, old_file_name, new_file_name))
 
         # copy file into new directory
         shutil.copy(file, fastq_files_dir)
@@ -229,8 +266,8 @@ def copy_and_rename_fastq_gz_files_paired(seq_run, current_dir, fastq_files_dir,
             if sample not in sample_list:
                 missing.append(sample)
         if len(missing) > 0:
-            print('  checking for any sample in run that is missing fastq files')
-            print('  note this is just a warning message, that you can use to go and investigate')
+            print('  WARNING!! found %d samples in sample sheet without fastq files' % len(missing))
+            print('  the missing samples are:')
             for item in missing:
                 print('  ... %s' % item)
             print('')
@@ -242,11 +279,11 @@ def upload_fastq_files_to_bucket(seq_run, current_dir, fastq_files_dir, bucket_n
     print('')
     print('')
     print('  ******* uploading fastq_file_directory to google bucket *******')
+    print('  .... this might take a minute or two')
     time.sleep(5)
     
 #     local_path = fastq_files_dir
-    os.chdir(fastq_files_dir)
-    
+    os.chdir(fastq_files_dir)  
     client_storage = storage.Client()
     bucket = client_storage.get_bucket(bucket_name)
     
@@ -257,11 +294,11 @@ def upload_fastq_files_to_bucket(seq_run, current_dir, fastq_files_dir, bucket_n
         bucket_path = os.path.join(bucket_prefix, file)
         blob = bucket.blob(bucket_path)
         blob.upload_from_filename(localFile)
-        print('  {}: uploaded {} to {} bucket'.format(n, file, os.path.join(bucket_name, bucket_prefix)))
+#         print('  {}: uploaded {} to {} bucket'.format(n, file, os.path.join(bucket_name, bucket_prefix)))
     
 
           
-def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, current_dir, seq_run, plate_loc_df):
+def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, current_dir, seq_run, plate_loc_df, terra_output_dir):
     print('')
     print('')    
     print('  ******* creating datatable for terra *******')
@@ -301,12 +338,17 @@ def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, curr
         df = df.join(plate_loc_df, how = 'left')
         df = df.reset_index()
     else:
+        # if no sample sheet is provided
         df['plate_name'] = 'not provided'
         df['plate_sample_well'] = 'not provided'
+        df['primer_set'] = 'not specified'
+        df['seq_run'] = seq_run
+        df['out_dir'] = terra_output_dir
     
-
+    col_order = ['accession_id', 'fastq', 'plate_name', 'plate_sample_well', 'primer_set',  'out_dir', 'seq_run']
+    df = df[col_order]
     df = df.rename(columns = {'accession_id' : 'entity:sample%s_id' % seq_run_mod})
-          
+   
     outfile = os.path.join(current_dir, '%s_terra_data_table.tsv' % seq_run)
     df.to_csv(outfile, index = False, sep = '\t')
 
@@ -324,11 +366,11 @@ def create_terra_data_table_single(bucket_path, bucket_name, bucket_prefix, curr
     bucket_path = os.path.join(bucket_outerdir_prefix, '%s_terra_data_table.tsv' % seq_run)
     blob = bucket.blob(bucket_path)
     blob.upload_from_filename(outfile)
-    print('  uploaded {} to {} bucket'.format( outfile, os.path.join(bucket_name, bucket_outerdir_prefix)))
+#     print('  uploaded {} to {} bucket'.format( outfile, os.path.join(bucket_name, bucket_outerdir_prefix)))
     
       
     
-def create_terra_data_table_paired(bucket_path, bucket_name, bucket_prefix, current_dir, seq_run, plate_loc_df ):
+def create_terra_data_table_paired(bucket_path, bucket_name, bucket_prefix, current_dir, seq_run, plate_loc_df, terra_output_dir ):
     print('')
     print('')
     print('  ******* creating datatable for terra *******')
@@ -393,13 +435,15 @@ def create_terra_data_table_paired(bucket_path, bucket_name, bucket_prefix, curr
     else:
         df['plate_name'] = 'not provided'
         df['plate_sample_well'] = 'not provided'
+        df['seq_run'] = seq_run
+        df['out_dir'] = terra_output_dir
+        df['primer_set'] = 'not specified'
     
+    
+    col_order = ['accession_id', 'fastq_1', 'fastq_2', 'plate_name', 'plate_sample_well', 'primer_set', 'out_dir', 'seq_run']
+    df = df[col_order]
     df = df.rename(columns = {'accession_id' : 'entity:sample%s_id' % seq_run_mod})
-          
-    outfile = os.path.join(current_dir, '%s_terra_data_table.tsv' % seq_run)
-    df.to_csv(outfile, index = False, sep = '\t')
-    df = df.rename(columns = {'sample_name' : 'entity:sample%s_id' % seq_run_mod})
-          
+    
     outfile = os.path.join(current_dir, '%s_terra_data_table.tsv' % seq_run)
     df.to_csv(outfile, index = False, sep = '\t')
     
@@ -417,7 +461,7 @@ def create_terra_data_table_paired(bucket_path, bucket_name, bucket_prefix, curr
     bucket_path = os.path.join(bucket_outerdir_prefix, '%s_terra_data_table.tsv' % seq_run)
     blob = bucket.blob(bucket_path)
     blob.upload_from_filename(outfile)
-    print('  uploaded {} to {} bucket'.format( outfile, os.path.join(bucket_name, bucket_outerdir_prefix)))    
+#     print('  uploaded {} to {} bucket'.format( outfile, os.path.join(bucket_name, bucket_outerdir_prefix)))    
     
 def remove_fastq_gz_directories(current_dir):
     print('')
@@ -436,8 +480,9 @@ if __name__ == '__main__':
     print('')
     print('  *************************************************************************')
     print('  *** starting ORGANIZE_ILLUMNA_FASTQ ***')
-    print('      .... last updated 2021-09-16')
+    print('      .... last updated 2021-10-21')
     print('      .... lastest update includes adding plate location to terra datatable')
+    print('      .... lastest update includes adding seq_run, out_dir, and primer_set to terra datatable')
     print('')
     print('')
     
@@ -450,10 +495,28 @@ if __name__ == '__main__':
     seq_run = options.seq_run # this is the sequence run name
     run_type = options.run_type # this is the run type either single or paired
     sample_sheet = options.sample_sheet # path to the excel sample sheet (optional, default is 'not provided')
-
+    terra_output_dir = options.terra_output_dir # path to google bucket for terra output to go (optiona, default is 'not provided' 
+                                                # and will be assigned gs://covid_terra/{seq_run}/terra_outputs/
+    print('  USER INPUTS')
     print('  sequence run: %s' % seq_run)
     print('  run type: %s' % run_type)
     print('  sample_sheet: %s' % sample_sheet)
+    
+    # do some magic to create the terra output dir
+    if terra_output_dir == 'not provided':
+        print('  terra_output_dir: %s' % terra_output_dir)
+        print('  terra_output_dir will default to gs://covid_terra/%s/terra_outputs/' % seq_run)
+        terra_output_dir = 'gs://covid_terra/%s/terra_outputs/' % (seq_run)
+    else:
+        print('  terra_output_dir: %s' % terra_output_dir)
+        
+        if re.search('gs://', terra_output_dir):
+            terra_output_dir = terra_output_dir.replace('gs://', '')
+        if re.search('/$', terra_output_dir):
+            terra_output_dir = re.sub('/$', '', terra_output_dir)
+            
+        print('  terra_output_dir will become: gs://%s/%s/terra_outputs/' % (terra_output_dir, seq_run))
+        terra_output_dir = 'gs://%s/%s/terra_outputs/' % (terra_output_dir, seq_run)
     print('')
     print('')
     time.sleep(3)
@@ -461,7 +524,8 @@ if __name__ == '__main__':
     if sample_sheet == 'not provided':
         print('  .... no sample sheet provided')
         print('  .... plate locations will be recorded as "not provided"')
-        print("  .... if you'd like the plate location to be included in the sequencing results output, specify --sample_sheet flag")
+        print('  .... primer set will be recorded as "not provided"')
+        print("  .... if you'd like the plate location and/or primer_set to be included in the sequencing results output, specify --sample_sheet flag")
         print('  .... to get sample import sheet see j drive')
         print('  .... be sure to use the excel sequencing workbook, not the csv import sheet')
         print('  .... continuing without sample sheet')
@@ -503,7 +567,8 @@ if __name__ == '__main__':
     
     # now run the list of functions
     if sample_sheet != 'not provided':
-        sample_sheet_output = read_in_sample_sheet(sample_sheet = sample_sheet, seq_run = seq_run, output_dir = current_dir)
+        sample_sheet_output = read_in_sample_sheet(sample_sheet = sample_sheet, seq_run = seq_run, 
+                                                   output_dir = current_dir, terra_output_dir = terra_output_dir)
         sample_sheet_sample_list = sample_sheet_output['sample_list']
         plate_loc_df = sample_sheet_output['df']
     else:
@@ -531,22 +596,10 @@ if __name__ == '__main__':
                                 bucket_prefix = bucket_prefix, 
                                 current_dir = current_dir, 
                                 seq_run= seq_run,
-                                      plate_loc_df = plate_loc_df)                   
+                                      plate_loc_df = plate_loc_df,
+                                      terra_output_dir = terra_output_dir)                   
 
-        remove_fastq_gz_directories(current_dir = current_dir)
-        
-        print('')
-        print('')
-        if len(samples_without_4_fastq_files) > 0:
-            print('  check the following samples')
-            print('  they did not have 4 raw fastq files to concatenate')
-            for sample in samples_without_4_fastq_files:
-                print('  .... %s' % sample)
-        print('')
-        print('')
-        print('  DONE!')
-        print('')
-        print('')
+#         remove_fastq_gz_directories(current_dir = current_dir)
 
 
     elif run_type == 'paired':
@@ -570,9 +623,10 @@ if __name__ == '__main__':
                                 bucket_prefix = bucket_prefix, 
                                 current_dir = current_dir, 
                                 seq_run= seq_run,
-                                      plate_loc_df = plate_loc_df)                   
+                                      plate_loc_df = plate_loc_df,
+                                      terra_output_dir = terra_output_dir)                   
 
-        remove_fastq_gz_directories(current_dir = current_dir)
+#         remove_fastq_gz_directories(current_dir = current_dir)
         print('')
         print('')
         print('  DONE!')

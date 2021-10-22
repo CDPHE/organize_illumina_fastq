@@ -1,5 +1,11 @@
 # organize_illumna_fastq
 
+## latest updates:
+- now creates seq_run, out_dir, and primer_set columns in terra data table
+- no longer prints all fastq files to screen, simply gives you a count
+- provides warning if sample has more or less than 4 fastq files for NEXSEQ runs
+- provides warning if sample in sample sheet does not have an associated fastq file
+
 ## Purpose:
 This python script can be used for illumina single end or paired end reads, by specifying ```--run_type``` as "single" or "paired", respectively.
 This python script completes the following tasks:
@@ -71,6 +77,7 @@ This only needs to be performed the first time you run the script.
   - ``--bucket_path`` : google coloud bucket i.e. gs://covid_terra
   - ``--run_type`` : either "paired" or "single". Used paired for COVSEQ and WWT runs; use single for NEXSEQ runs
   - ``--sample_sheet`` : (optional) path to the excel sample sheet workbook; downloaded from the j drive, if not specified then the plate name and plate sample well will be filled in as 'not provided'
+  - ``--terra_output_dir`` : (optional) if supplied changes the terra_output directory; defaut is gs://covid_terra/{seq_run}/terra_outputs/
 
 
 ```<path_to_organize_illumna_fastq_directory>/organize_illumna_fastq.py --seq_run <COVSEQ_0000> --bucket_path gs://<path_to_bucket> --run_type <paired or single>``` --sample_sheet <path to sample sheet>
