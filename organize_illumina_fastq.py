@@ -279,7 +279,7 @@ def upload_fastq_files_to_bucket(seq_run, current_dir, fastq_files_dir, bucket_n
     print('')
     print('')
     print('  ******* uploading fastq_file_directory to google bucket *******')
-    print('  .... this might take a minute or two')
+    print('  .... this might take a minute or two or three.... or four.... or....')
     time.sleep(5)
     
 #     local_path = fastq_files_dir
@@ -499,6 +499,7 @@ if __name__ == '__main__':
                                                 # and will be assigned gs://covid_terra/{seq_run}/terra_outputs/
     print('  USER INPUTS')
     print('  sequence run: %s' % seq_run)
+    print('  bucket_path: %s' % options.bucket_path)
     print('  run type: %s' % run_type)
     print('  sample_sheet: %s' % sample_sheet)
     
@@ -599,7 +600,7 @@ if __name__ == '__main__':
                                       plate_loc_df = plate_loc_df,
                                       terra_output_dir = terra_output_dir)                   
 
-#         remove_fastq_gz_directories(current_dir = current_dir)
+        remove_fastq_gz_directories(current_dir = current_dir)
 
 
     elif run_type == 'paired':
@@ -626,11 +627,12 @@ if __name__ == '__main__':
                                       plate_loc_df = plate_loc_df,
                                       terra_output_dir = terra_output_dir)                   
 
-#         remove_fastq_gz_directories(current_dir = current_dir)
-        print('')
-        print('')
-        print('  DONE!')
-        print('')
-        print('')
+        remove_fastq_gz_directories(current_dir = current_dir)
+    
+    print('')
+    print('')
+    print('  DONE!')
+    print('')
+    print('')
 
 
