@@ -21,7 +21,7 @@ def getOptions(args=sys.argv[1:]):
     parser.add_argument("--bucket_path", help="google cloud bucket path; e.g. gs://covid_terra")
     parser.add_argument("--read_type",  help="either 'paired' or 'single'")
     parser.add_argument("--sample_sheet", help='the sequencing excel (.xlsx) workbook from the j drive', default = 'not provided')
-    parser.add_argument('--terra_output_dir', help='(optional) default = gs://covid_terra/{seq_run}/terra_outputs/', default = 'not provided')ll
+    parser.add_argument('--terra_output_dir', help='(optional) default = gs://covid_terra/{seq_run}/terra_outputs/', default = 'not provided')
     parser.add_argument('--remove_bs_dir', help = '(optional) either TRUE or FALSE; default = TRUE and the bs directories will be removed', default = 'TRUE')
     options = parser.parse_args(args)
     return options
