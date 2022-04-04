@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 
+## last updated 4/4/2022
+## update makes it so it splits file name on "_L" for nexseq runs this will be less restrictive than "_L00"
+
 import os
 import glob
 import re
@@ -60,11 +63,11 @@ def read_in_sample_sheet(sample_sheet_path, seq_run, output_dir, terra_output_di
     df = df.reset_index(drop = True)
     columns = df.columns
     
-    if tech_platform == 'Illumina NovaSeq':
-        for row in range(df.shape[0]):
-            sample_name = df.accession_id[row]
-            new_sample_name = sample_name.replace('_', '')
-            df.at[row, 'accession_id'] = new_sample_name
+#     if tech_platform == 'Illumina NovaSeq':
+#         for row in range(df.shape[0]):
+#             sample_name = df.accession_id[row]
+#              new_sample_name = sample_name.replace('_', '')
+#              df.at[row, 'accession_id'] = new_sample_name
     
     # add some additional columns to df
     df['out_dir'] = terra_output_dir
@@ -92,19 +95,38 @@ def read_in_sample_sheet(sample_sheet_path, seq_run, output_dir, terra_output_di
         
    
     # reorder the columns
-    col_order = ['accession_id', 'primer_set', 'seq_run', 'download_date','tech_platform', 'read_type', 
+    if tech_platform == 'Illumina NovaSeq':
+        col_order = ['accession_id', 'Lane','primer_set', 'seq_run', 'download_date','tech_platform', 'read_type', 
+                  'plate_name', 'plate_sample_well', 'out_dir']
+    
+    else:
+        col_order = ['accession_id', 'primer_set', 'seq_run', 'download_date','tech_platform', 'read_type', 
                   'plate_name', 'plate_sample_well', 'out_dir']
     
     df = df[col_order]
+    df = df.reset_index(drop = True)
     
     # remove the temp tsv
     os.remove(target_sheet_tsv)
     
     return df
 
-def get_sample_list(df):
-    sample_list = df.accession_id.unique().tolist()
-    print('  ..... there are %d samples in this run' % len(sample_list))
+def get_sample_list(df, tech_platform):
+    if tech_platform == 'Illumina NovaSeq':
+        sample_list = []
+        # combine the lane info with the sample id....
+        for row in range(df.shape[0]):
+            accession_id = df.accession_id[row]
+            lane = df.lane[row]
+            
+            sample_name = '%s_00%d' % (accession_id, lane)
+            sample_list.append(lane)
+        print('  .... there are %d samples in this run' % len(sample_list))
+    
+    else:
+        sample_list = df.accession_id.unique().tolist()
+        print('  ..... there are %d samples in this run' % len(sample_list))
+    
     return sample_list
 
 
@@ -149,7 +171,7 @@ def concat_fastq_gz_files_single(current_dir, fastq_files_dir, sample_list, tech
             #### track which samples don't have 4 fastq files
             file_list = []
             for file in glob.glob('*/*.fastq.gz'):
-                sample_name = file.split('_L00')[0]
+                sample_name = file.split('_L')[0]
                 if sample_name == sample:
                     file_list.append(file)
             
@@ -192,7 +214,8 @@ def concat_fastq_gz_files_single(current_dir, fastq_files_dir, sample_list, tech
         fastq_file_list = []
         for file in glob.glob('*/*.fastq.gz'):
             fastq_file_list.append(file)
-                
+        print('  .... there are %d fastq files listed in the directory' % len(fastq_file_list))
+        
         # copy to fastq_files_dir
         n = 0    
         for file in glob.glob('*/*.fastq.gz'):
@@ -201,9 +224,10 @@ def concat_fastq_gz_files_single(current_dir, fastq_files_dir, sample_list, tech
             if mult_100 ==0 or n == len(fastq_file_list) or n == 1:
                 print('  ..... moving and renaming %d of %d fastq files' % (n, len(fastq_file_list)))
 
-            sample_name = file.split('_L00')[0]   
+            sample_name = file.split('_ds')[0]   
             new_file_name = '%s.fastq.gz' % sample_name
             old_file_name = file.split('/')[-1]
+            
 
             # move the file to save room
             shutil.move(file, fastq_files_dir)
@@ -423,7 +447,7 @@ if __name__ == '__main__':
     
     terra_output_dir = options.terra_output_dir
     if terra_output_dir == 'not provided':
-        terra_output_dir = 'gs://covid_terra/%s/terra_outputs/' % seq_run
+        terra_output_dir = os.path.join('gs://covid_terra', seq_run, 'terra_outputs')
     else:
         terra_output_dir = os.path.join(terra_output_dir, seq_run, 'terra_outputs')
         
@@ -453,7 +477,7 @@ if __name__ == '__main__':
                               download_date = download_date, 
                               read_type = read_type,
                               bucket_path = bucket_path)
-    sample_list = get_sample_list(df = df)
+    sample_list = get_sample_list(df = df, tech_platform = tech_platform)
     fastq_files_dir = create_fastq_files_directory(seq_run = seq_run,  
                                                    current_dir = current_dir)
     
